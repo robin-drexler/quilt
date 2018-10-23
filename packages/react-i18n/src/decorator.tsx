@@ -149,11 +149,10 @@ export function withI18n({id, fallback, translations}: WithI18nOptions = {}) {
       }
     }
 
-    const FinalComponent = hoistStatics(
-      WithTranslation,
-      WrappedComponent as React.ComponentClass<any>,
-    );
-    return FinalComponent as React.ComponentClass<any> & C;
+    return hoistStatics(
+      WithTranslation as ReactComponent<any>,
+      WrappedComponent,
+    ) as ReactComponent<OwnProps> & C;
   };
 }
 

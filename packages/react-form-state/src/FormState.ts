@@ -54,6 +54,7 @@ interface Props<Fields> {
   onSubmit?: SubmitHandler<Fields>;
   validateOnSubmit?: boolean;
   onInitialValuesChange?: 'reset-all' | 'reset-where-changed' | 'ignore';
+  disableOnSubmit?: boolean;
   children(form: FormDetails<Fields>): React.ReactNode;
 }
 
@@ -174,7 +175,7 @@ export default class FormState<
 
   @bind()
   private async submit(event?: Event) {
-    const {onSubmit, validateOnSubmit} = this.props;
+    const {onSubmit, disableOnSubmit, validateOnSubmit} = this.props;
     const {formData} = this;
 
     if (!this.mounted) {
@@ -191,10 +192,18 @@ export default class FormState<
 
     this.setState({submitting: true});
 
+    if (disableOnSubmit) {
+      this.disableFields();
+    }
+
     if (validateOnSubmit) {
       await this.validateForm();
 
       if (this.hasClientErrors) {
+        if (disableOnSubmit) {
+          this.unsetDisabledFields();
+        }
+
         this.setState({submitting: false});
         return;
       }
@@ -212,6 +221,12 @@ export default class FormState<
     } else {
       this.setState({submitting: false, errors});
     }
+
+    if (disableOnSubmit) {
+      this.unsetDisabledFields();
+    }
+
+    this.setState({submitting: false});
   }
 
   @memoize()
@@ -378,6 +393,32 @@ export default class FormState<
           return {
             ...field,
             error: errorDictionary[path],
+          };
+        }),
+      };
+    });
+  }
+
+  private disableFields() {
+    this.setState(({fields}: State<Fields>) => {
+      return {
+        fields: mapObject(fields, field => {
+          return {
+            ...field,
+            disabled: true,
+          };
+        }),
+      };
+    });
+  }
+
+  private unsetDisabledFields() {
+    this.setState(({fields}: State<Fields>) => {
+      return {
+        fields: mapObject(fields, field => {
+          return {
+            ...field,
+            disabled: undefined,
           };
         }),
       };

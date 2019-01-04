@@ -398,6 +398,40 @@ function MyComponent() {
 
 To learn more about building validators, and the built in functions exposed by this package, check out the [validators guide](validators.md).
 
+### disableOnSubmit
+
+You can configure `<FormState />` to disable all fields in the form while executing `onSubmit` by passing it the `disableOnSubmit` prop.
+
+```typescript
+import {TextField, Form, Button} from '@shopify/polaris';
+import FormState, {validators} from '@shopify/react-form-state';
+
+function MyComponent() {
+  return (
+    <FormState
+      initialValues={{
+        title: 'Cool title',
+      }}
+      disableOnSubmit
+      onSubmit={() => {
+        console.log('I take a long time to run');
+      }}
+    >
+      {formDetails => {
+        const {fields, submit} = formDetails;
+
+        return (
+          <Form onSubmit={submit}>
+            <TextField label="Title" {...fields.title} />
+            <Button type="submit">Submit</Button>
+          </Form>
+        );
+      }}
+    </FormState>
+  );
+}
+```
+
 ## Compound fields
 
 The default API for generating handlers with `<FormState />` is very simple, but real world apps are often very complex. You will often have to represent editing many resources with one form. This can mean needing support for arrays of fields, fields that are nested objects, or both. `<FormState />` allows passing these complex values into `initialValues` and having your own special sub-components that use the handlers, but for most cases it's recommended to use the sub-components `<FormState.List />` and `<FormState.Nested />`.

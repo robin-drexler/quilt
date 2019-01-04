@@ -14,28 +14,30 @@ export default class Nested<Fields> extends React.Component<
   Props<Fields>,
   never
 > {
-  shouldComponentUpdate(nextProps) {
+  shouldComponentUpdate(nextProps: Props<Fields>) {
     const {
       field: {
         value: nextValue,
         error: nextError,
+        disabled: nextDisabled,
         initialValue: nextInitialValue,
       },
     } = nextProps;
     const {
-      field: {value, error, initialValue},
+      field: {value, error, disabled, initialValue},
     } = this.props;
 
     return (
       nextValue !== value ||
       nextError !== error ||
+      nextDisabled !== disabled ||
       nextInitialValue !== initialValue
     );
   }
 
   render() {
     const {
-      field: {name, value, onBlur, initialValue, error},
+      field: {name, value, onBlur, initialValue, error, disabled},
       children,
     } = this.props;
 
@@ -50,6 +52,7 @@ export default class Nested<Fields> extends React.Component<
           initialValue: initialFieldValue,
           dirty: value !== initialFieldValue,
           error: get(error, fieldPath),
+          disabled,
           onChange: this.handleChange(fieldPath),
         };
       },

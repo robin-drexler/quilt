@@ -225,8 +225,6 @@ export default class FormState<
     if (disableOnSubmit) {
       this.enableFields();
     }
-
-    this.setState({submitting: false});
   }
 
   @memoize()

@@ -143,7 +143,6 @@ export default class FormState<
       const newErrors = [...errors, ...externalErrors];
       const fieldWithErrorMapper = fieldWithErrorMapperFactory(newErrors);
       return {
-        errors: newErrors,
         fields: mapObject(fields, fieldWithErrorMapper),
       };
     });
@@ -151,12 +150,13 @@ export default class FormState<
 
   private get formData() {
     const {errors} = this.state;
+    const {externalErrors = []} = this.props;
     const {fields, dirty, valid} = this;
 
     return {
       dirty,
       valid,
-      errors,
+      errors: [...errors, ...externalErrors],
       fields,
     };
   }
@@ -167,8 +167,13 @@ export default class FormState<
 
   private get valid() {
     const {errors} = this.state;
+    const {externalErrors} = this.props;
 
-    return !this.hasClientErrors && errors.length === 0;
+    return (
+      !this.hasClientErrors &&
+      errors.length === 0 &&
+      (externalErrors == null || externalErrors.length === 0)
+    );
   }
 
   private get hasClientErrors() {
@@ -378,8 +383,11 @@ export default class FormState<
   }
 
   private updateRemoteErrors(errors: RemoteError[]) {
-    this.setState(({fields}: State<Fields>) => {
-      const fieldWithErrorMapper = fieldWithErrorMapperFactory(errors);
+    this.setState(({fields}: State<Fields>, {externalErrors = []}) => {
+      const fieldWithErrorMapper = fieldWithErrorMapperFactory([
+        ...errors,
+        ...externalErrors,
+      ]);
       return {
         errors,
         fields: mapObject(fields, fieldWithErrorMapper),

@@ -279,6 +279,78 @@ describe('<FormState />', () => {
     });
   });
 
+  describe('externalErrors', () => {
+    it('associate external errors with field objects passed into render prop on mount', () => {
+      const renderPropSpy = jest.fn(() => null);
+      const product = faker.commerce.productName();
+      const message = 'message';
+      const externalErrors = [
+        {
+          field: ['product'],
+          message,
+        },
+      ];
+
+      mount(
+        <FormState initialValues={{product}} externalErrors={externalErrors}>
+          {renderPropSpy}
+        </FormState>,
+      );
+
+      const {fields} = lastCallArgs(renderPropSpy);
+      expect(fields).toMatchObject({
+        product: {
+          value: product,
+          initialValue: product,
+          dirty: false,
+          name: 'product',
+          error: message,
+        },
+      });
+    });
+
+    it('associate new external errors with field objects passed into render prop', () => {
+      const renderPropSpy = jest.fn(() => null);
+      const product = faker.commerce.productName();
+      const message = 'message';
+      const externalErrors = [
+        {
+          field: ['product'],
+          message,
+        },
+      ];
+
+      const wrapper = mount(
+        <FormState initialValues={{product}} externalErrors={externalErrors}>
+          {renderPropSpy}
+        </FormState>,
+      );
+
+      const newMessage = message + 1;
+      const newExternalErrors = [
+        {
+          field: ['product'],
+          message: newMessage,
+        },
+      ];
+
+      wrapper.setProps({
+        externalErrors: newExternalErrors,
+      });
+
+      const {fields} = lastCallArgs(renderPropSpy);
+      expect(fields).toMatchObject({
+        product: {
+          value: product,
+          initialValue: product,
+          dirty: false,
+          name: 'product',
+          error: newMessage,
+        },
+      });
+    });
+  });
+
   describe('reset()', () => {
     it('resets all fields to their initial values', () => {
       const renderPropSpy = jest.fn(() => null);

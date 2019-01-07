@@ -50,11 +50,12 @@ export interface FormDetails<Fields> extends FormData<Fields> {
 
 interface Props<Fields> {
   initialValues: Fields;
+  children(form: FormDetails<Fields>): React.ReactNode;
   validators?: Partial<ValidatorDictionary<Fields>>;
   onSubmit?: SubmitHandler<Fields>;
   validateOnSubmit?: boolean;
   onInitialValuesChange?: 'reset-all' | 'reset-where-changed' | 'ignore';
-  children(form: FormDetails<Fields>): React.ReactNode;
+  externalErrors?: RemoteError[];
 }
 
 interface State<Fields> {
@@ -91,11 +92,17 @@ export default class FormState<
     }
   }
 
-  state = createFormState(this.props.initialValues);
+  state = createFormState(this.props.initialValues, this.props.externalErrors);
   private mounted = false;
 
   componentDidMount() {
     this.mounted = true;
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.externalErrors !== this.props.externalErrors) {
+      this.associateExternalErrorsWithFields();
+    }
   }
 
   componentWillUnmount() {
@@ -115,18 +122,6 @@ export default class FormState<
     });
   }
 
-  private get formData() {
-    const {errors} = this.state;
-    const {fields, dirty, valid} = this;
-
-    return {
-      dirty,
-      valid,
-      errors,
-      fields,
-    };
-  }
-
   public validateForm() {
     return new Promise(resolve => {
       this.setState(runAllValidators, () => resolve());
@@ -141,6 +136,29 @@ export default class FormState<
         () => resolve(),
       );
     });
+  }
+
+  private associateExternalErrorsWithFields() {
+    this.setState(({fields, errors}, {externalErrors = []}) => {
+      const newErrors = [...errors, ...externalErrors];
+      const fieldWithErrorMapper = fieldWithErrorMapperFactory(newErrors);
+      return {
+        errors: newErrors,
+        fields: mapObject(fields, fieldWithErrorMapper),
+      };
+    });
+  }
+
+  private get formData() {
+    const {errors} = this.state;
+    const {fields, dirty, valid} = this;
+
+    return {
+      dirty,
+      valid,
+      errors,
+      fields,
+    };
   }
 
   private get dirty() {
@@ -361,28 +379,33 @@ export default class FormState<
 
   private updateRemoteErrors(errors: RemoteError[]) {
     this.setState(({fields}: State<Fields>) => {
-      const errorDictionary = errors.reduce(
-        (accumulator: any, {field, message}) => {
-          if (field == null) {
-            return accumulator;
-          }
-
-          return set(accumulator, field, message);
-        },
-        {},
-      );
-
+      const fieldWithErrorMapper = fieldWithErrorMapperFactory(errors);
       return {
         errors,
-        fields: mapObject(fields, (field, path) => {
-          return {
-            ...field,
-            error: errorDictionary[path],
-          };
-        }),
+        fields: mapObject(fields, fieldWithErrorMapper),
       };
     });
   }
+}
+
+function errorDictionaryFactory(errors: RemoteError[]) {
+  return errors.reduce((accumulator: any, {field, message}) => {
+    if (field == null) {
+      return accumulator;
+    }
+
+    return set(accumulator, field, message);
+  }, {});
+}
+
+function fieldWithErrorMapperFactory(errors: RemoteError[] = []) {
+  const errorDictionary = errorDictionaryFactory(errors);
+  return (field, path) => {
+    return {
+      ...field,
+      error: errorDictionary[path],
+    };
+  };
 }
 
 function reconcileFormState<Fields>(
@@ -415,7 +438,10 @@ function reconcileFormState<Fields>(
   };
 }
 
-function createFormState<Fields>(values: Fields): State<Fields> {
+function createFormState<Fields>(
+  values: Fields,
+  externalErrors?: RemoteError[],
+): State<Fields> {
   const fields: FieldStates<Fields> = mapObject(values, value => {
     return {
       value,
@@ -424,11 +450,17 @@ function createFormState<Fields>(values: Fields): State<Fields> {
     };
   });
 
+  let fieldsWithErrors = fields;
+  if (externalErrors) {
+    const fieldWithErrorMapper = fieldWithErrorMapperFactory(externalErrors);
+    fieldsWithErrors = mapObject(fields, fieldWithErrorMapper);
+  }
+
   return {
     dirtyFields: [],
     errors: [],
     submitting: false,
-    fields,
+    fields: fieldsWithErrors,
   };
 }
 

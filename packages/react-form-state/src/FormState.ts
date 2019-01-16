@@ -63,6 +63,7 @@ interface State<Fields> {
   fields: FieldStates<Fields>;
   dirtyFields: (keyof Fields)[];
   errors: RemoteError[];
+  externalErrors: RemoteError[];
 }
 
 export default class FormState<
@@ -72,24 +73,44 @@ export default class FormState<
   static Nested = Nested;
 
   static getDerivedStateFromProps<T>(newProps: Props<T>, oldState: State<T>) {
-    const {initialValues, onInitialValuesChange} = newProps;
+    const {initialValues, onInitialValuesChange, externalErrors} = newProps;
+
+    let nextState;
 
     switch (onInitialValuesChange) {
       case 'ignore':
-        return null;
+        nextState = null;
+        break;
       case 'reset-where-changed':
-        return reconcileFormState(initialValues, oldState);
+        nextState = reconcileFormState(initialValues, oldState, externalErrors);
+        break;
       case 'reset-all':
       default:
         const oldInitialValues = initialValuesFromFields(oldState.fields);
         const valuesMatch = isEqual(oldInitialValues, initialValues);
 
         if (valuesMatch) {
-          return null;
+          nextState = null;
         }
 
-        return createFormState(initialValues);
+        nextState = createFormState(initialValues, externalErrors);
     }
+
+    const externalErrorsChanged =
+      externalErrors !== oldState.externalErrors ||
+      externalErrors.length !== oldState.externalErrors.length;
+
+    if (nextState == null && externalErrorsChanged) {
+      return {
+        externalErrors,
+        fields: fieldsWithErrors(oldState.fields, [
+          ...externalErrors,
+          ...oldState.errors,
+        ]),
+      };
+    }
+
+    return nextState;
   }
 
   state = createFormState(this.props.initialValues, this.props.externalErrors);
@@ -97,12 +118,6 @@ export default class FormState<
 
   componentDidMount() {
     this.mounted = true;
-  }
-
-  componentDidUpdate(prevProps) {
-    if (prevProps.externalErrors !== this.props.externalErrors) {
-      this.associateExternalErrorsWithFields();
-    }
   }
 
   componentWillUnmount() {
@@ -132,19 +147,10 @@ export default class FormState<
   public reset() {
     return new Promise(resolve => {
       this.setState(
-        (_state, props) => createFormState(props.initialValues),
+        (_state, props) =>
+          createFormState(props.initialValues, props.externalErrors),
         () => resolve(),
       );
-    });
-  }
-
-  private associateExternalErrorsWithFields() {
-    this.setState(({fields, errors}, {externalErrors = []}) => {
-      const newErrors = [...errors, ...externalErrors];
-      const fieldWithErrorMapper = fieldWithErrorMapperFactory(newErrors);
-      return {
-        fields: mapObject(fields, fieldWithErrorMapper),
-      };
     });
   }
 
@@ -166,13 +172,12 @@ export default class FormState<
   }
 
   private get valid() {
-    const {errors} = this.state;
-    const {externalErrors} = this.props;
+    const {errors, externalErrors} = this.state;
 
     return (
       !this.hasClientErrors &&
       errors.length === 0 &&
-      (externalErrors == null || externalErrors.length === 0)
+      externalErrors.length === 0
     );
   }
 
@@ -383,42 +388,40 @@ export default class FormState<
   }
 
   private updateRemoteErrors(errors: RemoteError[]) {
-    this.setState(({fields}: State<Fields>, {externalErrors = []}) => {
-      const fieldWithErrorMapper = fieldWithErrorMapperFactory([
-        ...errors,
-        ...externalErrors,
-      ]);
-      return {
-        errors,
-        fields: mapObject(fields, fieldWithErrorMapper),
-      };
-    });
+    this.setState(({fields, externalErrors}) => ({
+      errors,
+      fields: fieldsWithErrors(fields, [...errors, ...externalErrors]),
+    }));
   }
 }
 
-function errorDictionaryFactory(errors: RemoteError[]) {
-  return errors.reduce((accumulator: any, {field, message}) => {
-    if (field == null) {
-      return accumulator;
-    }
+function fieldsWithErrors<Fields>(
+  fields: Fields,
+  errors: RemoteError[],
+): Fields {
+  const errorDictionary = errors.reduce(
+    (accumulator: any, {field, message}) => {
+      if (field == null) {
+        return accumulator;
+      }
 
-    return set(accumulator, field, message);
-  }, {});
-}
+      return set(accumulator, field, message);
+    },
+    {},
+  );
 
-function fieldWithErrorMapperFactory(errors: RemoteError[] = []) {
-  const errorDictionary = errorDictionaryFactory(errors);
-  return (field, path) => {
+  return mapObject(fields, (field, path) => {
     return {
       ...field,
       error: errorDictionary[path],
     };
-  };
+  });
 }
 
 function reconcileFormState<Fields>(
   values: Fields,
   oldState: State<Fields>,
+  externalErrors: RemoteError[] = [],
 ): State<Fields> {
   const {fields: oldFields} = oldState;
   const dirtyFields = new Set(oldState.dirtyFields);
@@ -442,13 +445,13 @@ function reconcileFormState<Fields>(
   return {
     ...oldState,
     dirtyFields: Array.from(dirtyFields),
-    fields,
+    fields: fieldsWithErrors(fields, externalErrors),
   };
 }
 
 function createFormState<Fields>(
   values: Fields,
-  externalErrors?: RemoteError[],
+  externalErrors: RemoteError[] = [],
 ): State<Fields> {
   const fields: FieldStates<Fields> = mapObject(values, value => {
     return {
@@ -458,17 +461,12 @@ function createFormState<Fields>(
     };
   });
 
-  let fieldsWithErrors = fields;
-  if (externalErrors) {
-    const fieldWithErrorMapper = fieldWithErrorMapperFactory(externalErrors);
-    fieldsWithErrors = mapObject(fields, fieldWithErrorMapper);
-  }
-
   return {
     dirtyFields: [],
     errors: [],
     submitting: false,
-    fields: fieldsWithErrors,
+    externalErrors,
+    fields: fieldsWithErrors(fields, externalErrors),
   };
 }
 

@@ -73,7 +73,11 @@ export default class FormState<
   static Nested = Nested;
 
   static getDerivedStateFromProps<T>(newProps: Props<T>, oldState: State<T>) {
-    const {initialValues, onInitialValuesChange, externalErrors} = newProps;
+    const {
+      initialValues,
+      onInitialValuesChange,
+      externalErrors = [],
+    } = newProps;
 
     let nextState;
 
@@ -91,6 +95,7 @@ export default class FormState<
 
         if (valuesMatch) {
           nextState = null;
+          break;
         }
 
         nextState = createFormState(initialValues, externalErrors);

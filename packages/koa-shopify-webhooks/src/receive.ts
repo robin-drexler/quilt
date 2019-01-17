@@ -4,7 +4,7 @@ import safeCompare from 'safe-compare';
 import bodyParser from 'koa-bodyparser';
 import mount from 'koa-mount';
 import compose from 'koa-compose';
-import {Context} from 'koa';
+import {Context, Middleware} from 'koa';
 
 import {WebhookHeader, Topic} from './types';
 
@@ -23,16 +23,16 @@ interface ParsedContext extends Context {
   request: Context['request'] & {rawBody: string};
 }
 
-export default function receiveWebhook({
+export function receiveWebhook({
   secret,
   path,
   onReceived = noop,
-}: Options) {
-  async function receiveWebhookMiddleware(ctx: ParsedContext, next) {
+}: Options): Middleware {
+  async function receiveWebhookMiddleware(ctx: Context, next: () => unknown) {
     const hmac = ctx.get(WebhookHeader.Hmac);
     const topic = ctx.get(WebhookHeader.Topic);
     const domain = ctx.get(WebhookHeader.Domain);
-    const {rawBody} = ctx.request;
+    const {rawBody} = (ctx as ParsedContext).request;
 
     const generatedHash = createHmac('sha256', secret)
       .update(rawBody, 'utf8')

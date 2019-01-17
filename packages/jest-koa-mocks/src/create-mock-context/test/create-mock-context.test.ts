@@ -26,6 +26,13 @@ describe('create-mock-context', () => {
     expect(context.request.body).toBe(requestBody);
   });
 
+  it('includes rawBody on ctx.request', () => {
+    const rawBody = 'Hello I am a body';
+    const context = createContext({rawBody});
+
+    expect(context.request.rawBody).toBe(rawBody);
+  });
+
   it('supports setting throw and redirect', () => {
     const throwFn = jest.fn();
     const redirect = jest.fn();

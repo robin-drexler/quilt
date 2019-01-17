@@ -1,5 +1,5 @@
-export {default as receiveWebhook, WebhookState} from './receive';
+export {receiveWebhook, WebhookState} from './receive';
 
-export {default as registerWebhook} from './register';
+export {registerWebhook, Options} from './register';
 
 export {WebhookHeader, Topic} from './types';

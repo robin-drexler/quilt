@@ -1,14 +1,14 @@
 import {Method, StatusCode, Header} from '@shopify/network';
 import {WebhookHeader, Topic} from './types';
 
-interface Options {
+export interface Options {
   topic: Topic;
   address: string;
   shop: string;
   accessToken: string;
 }
 
-export default async function registerWebhook({
+export async function registerWebhook({
   address,
   topic,
   accessToken,
@@ -29,11 +29,11 @@ export default async function registerWebhook({
     },
   });
 
-  const result = await response.json();
+  const data = await response.json();
 
   if (response.status === StatusCode.Created) {
-    return {success: true, result};
+    return {success: true, data};
   } else {
-    return {success: false, result};
+    return {success: false, data};
   }
 }

@@ -60,7 +60,7 @@ const app = new Koa();
 
 app.keys = [SHOPIFY_SECRET];
 
-app.use(session(app))
+app.use(session(app));
 app.use(
   shopifyAuth({
     apiKey: SHOPIFY_API_KEY,
@@ -72,7 +72,7 @@ app.use(
       // register a webhook for product creation
       const registration = await registerWebhook({
         // for local dev you probably want ngrok or something similar
-        address: 'www.mycool-app.com/webhooks/products/create';
+        address: 'www.mycool-app.com/webhooks/products/create',
         topic: 'products/create',
         accessToken,
         shop,
@@ -93,7 +93,7 @@ app.use(
   // receive webhooks
   receiveWebhook({
     path: '/webhooks/products/create',
-    secret: SHOPIFY_SECRET
+    secret: SHOPIFY_SECRET,
     // called when a valid webhook is received
     onReceived(ctx) {
       console.log('received webhook: ', ctx.state.webhook);
@@ -101,7 +101,7 @@ app.use(
   }),
 );
 
-app.use(verifyRequest())
+app.use(verifyRequest());
 
 app.use(ctx => {
   /* app code */
@@ -137,14 +137,14 @@ app.use(
       const {shop, accessToken} = ctx.session;
 
       await registerWebhook({
-        address: 'www.mycool-app.com/webhooks/products/create';
+        address: 'www.mycool-app.com/webhooks/products/create',
         topic: 'products/create',
         accessToken,
         shop,
       });
 
       await registerWebhook({
-        address: 'www.mycool-app.com/webhooks/orders/create';
+        address: 'www.mycool-app.com/webhooks/orders/create',
         topic: 'orders/create',
         accessToken,
         shop,
